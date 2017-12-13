@@ -127,10 +127,9 @@ int main(int argc, char* argv[])
 {
 	string regexp = argv[0];
 	toklist regexps = tokenize();
-
-	for each (unique_ptr<token> t in regexps)
+	for (unique_ptr<token> &t : regexps)
 	{
-		sacyqwd
+		cout << &t << endl;
 	}
 	
 
