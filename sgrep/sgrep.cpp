@@ -4,7 +4,7 @@
 #include <list>
 #include <sstream>
 #include <map>
-
+#include <fstream>
 
 using namespace std;
 
@@ -61,20 +61,19 @@ make_token(dot);
 make_token(or);
 
 
-
 class t_char : public token 
 {
 public:
-	t_char(const string& name) : name(name) {}
+	t_char(char name) : name(name) {}
 
 	bool is_char() {
 		return true;
 	}
-	string get_var_name() {
+	char get_char_name() {
 		return name;
 	}
 private:
-	string name;
+	char name;
 };
 
 
@@ -93,45 +92,59 @@ public:
 private:
 	string name;
 };
+
+
 using toklist = list<unique_ptr<token>>;
-toklist tokenize() 
+toklist tokenize(string regexp) 
 {
 	toklist t;
-	while (cin.good() && !cin.eof()) {
-		string temp;
-		cin >> temp;
-		if (temp == "EOF") break;
+	for (char c : regexp) {
 
-#define MATCH_TOKEN(s,l) if (temp == s) { t.push_back(make_unique<l>()); }
+#define MATCH_TOKEN(s,l) if (c == s) { t.push_back(make_unique<l>()); }
 
-		MATCH_TOKEN("[", t_bracketOpen)
-		else MATCH_TOKEN("]", t_bracketClose)
-		else MATCH_TOKEN("(", t_parenOpen)
-		else MATCH_TOKEN(")", t_parenClose)
-		else MATCH_TOKEN("-", t_hyphen)
-		else MATCH_TOKEN("*", t_star)
-		else MATCH_TOKEN("^", t_caret)
-		else MATCH_TOKEN(".", t_dot)
-		else MATCH_TOKEN("|", t_or)
+		MATCH_TOKEN('[', t_bracketOpen)
+		else MATCH_TOKEN(']', t_bracketClose)
+		else MATCH_TOKEN('(', t_parenOpen)
+		else MATCH_TOKEN(')', t_parenClose)
+		else MATCH_TOKEN('-', t_hyphen)
+		else MATCH_TOKEN('*', t_star)
+		else MATCH_TOKEN('^', t_caret)
+		else MATCH_TOKEN('.', t_dot)
+		else MATCH_TOKEN('|', t_or)
 		else {
-		t.push_back(make_unique<t_char>(temp));
+		t.push_back(make_unique<t_char>(c));
 		}
 
 #undef MATCH_TOKEN(s,t)
-
 	}
 	return t;
 }
 
-int main(int argc, char* argv[]) 
+int main(int argc, char ** argv) 
 {
-	string regexp = argv[0];
-	toklist regexps = tokenize();
-	for (unique_ptr<token> &t : regexps)
-	{
-		cout << &t << endl;
-	}
 	
+	string filename;
+	if (argc == 2)
+		filename = argv[1];
+	else {
+		cerr << "You cannot enter parameters" << endl;
+		return(1);
+	}
+	ifstream in(filename);
+	if (!in.good()) {
+		cerr << "File cannot be open" << endl;
+		return 2;
+	}
+	auto t = tokenize(in);
+	//for (auto&i : t) cout << typeid(*i).name() << endl;
+	auto p = parse_program(t);
+	Scope s;
+	p->run(s);
+
+
+
+
+
 
 
 	return 0;
