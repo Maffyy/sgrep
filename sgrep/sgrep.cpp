@@ -181,10 +181,27 @@ int main(int argc, char ** argv)
 /*Regex bude muj interface
 v nem budu mit funkci, ktera zapocitava pocet schod
 */
+using regexList = list<unique_ptr<Regex>>;
 class Regex {
 public:
+
 	virtual size_t match_part(const string& str, size_t begin, size_t max_len) = 0;
-	list<unique_ptr<Regex>> l;
+
+	Regex(regexList l) : l(l) {}
+
+	regexList getRegexList() {
+		return l;
+	}
+	void setRegexList(regexList regex) {
+		l = regex;
+	}
+	void pushToRegexList(Regex& r) {
+		l.push_back(make_unique<r>());
+	}
+
+
+private:
+	regexList l;
 };
 
 
@@ -234,10 +251,8 @@ private:
 
 
 
-Regex parse_Regex(toklist &t) {
-	//Regex r;
-
-	//if (t.empty) { return nullptr; }
+Regex& parse_Regex(toklist &t) {
+	Regex& r();
 	toklist regex;
 	for (auto &i : t )
 	{
