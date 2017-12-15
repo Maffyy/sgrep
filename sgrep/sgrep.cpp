@@ -5,9 +5,16 @@
 #include <sstream>
 #include <map>
 #include <fstream>
+#include "Regexlib.h"
+
 
 using namespace std;
 
+
+/*
+	Trida, ktera rozezna o jaky token se jedna
+	pouzivam u vsech funkci atribut virtual
+*/
 class token
 {
 public:
@@ -47,24 +54,45 @@ public:
 	}
 };
 
+
+
+/*
+Makro pro zachytavani tokenu
+za dva hashtagy a "a" se vypise nazev promenny
+
+vytvorim 8 tokenu 
+
+	pro zachytavani charu, zavorek,
+	hranatych zavorek ... atd.
+*/
+
+
 #define make_token(a) class t_##a : public token { \
 public:bool is_##a() { return true; }};
 
-make_token(bracketOpen);
-make_token(bracketClose);
-make_token(parenOpen);
-make_token(parenClose);
-make_token(hyphen);
-make_token(star);
-make_token(caret);
-make_token(dot);
-make_token(or);
+make_token(BracketOpen);
+make_token(BracketClose);
+make_token(ParenOpen);
+make_token(ParenClose);
+make_token(Hyphen);
+make_token(Star);
+make_token(Caret);
+make_token(Dot);
+make_token(Or);
+make_token(Char);
 
 
-class t_char : public token 
+/*
+	vytvari token t_char ze znakù
+
+		Mozna jeste zrusim.
+			-> protože jsem prave vytvoril token pro Char a z "politickych" duvodu to bude 
+			   lepsi
+*/
+class t_Char : public token 
 {
 public:
-	t_char(char name) : name(name) {}
+	t_Char(char name) : name(name) {}
 
 	bool is_char() {
 		return true;
@@ -76,7 +104,9 @@ private:
 	char name;
 };
 
-
+/*
+	vytvari vsechny ostatni tokeny
+*/
 class t_var : public token
 {
 public:
@@ -94,6 +124,10 @@ private:
 };
 
 
+/*
+	Vytvor seznam tokenu pomoci funkce tokenize()
+*/
+
 using toklist = list<unique_ptr<token>>;
 toklist tokenize(string regexp) 
 {
@@ -102,17 +136,17 @@ toklist tokenize(string regexp)
 
 #define MATCH_TOKEN(s,l) if (c == s) { t.push_back(make_unique<l>()); }
 
-		MATCH_TOKEN('[', t_bracketOpen)
-		else MATCH_TOKEN(']', t_bracketClose)
-		else MATCH_TOKEN('(', t_parenOpen)
-		else MATCH_TOKEN(')', t_parenClose)
-		else MATCH_TOKEN('-', t_hyphen)
-		else MATCH_TOKEN('*', t_star)
-		else MATCH_TOKEN('^', t_caret)
-		else MATCH_TOKEN('.', t_dot)
-		else MATCH_TOKEN('|', t_or)
+		MATCH_TOKEN('[', t_BracketOpen)
+		else MATCH_TOKEN(']', t_BracketClose)
+		else MATCH_TOKEN('(', t_ParenOpen)
+		else MATCH_TOKEN(')', t_ParenClose)
+		else MATCH_TOKEN('-', t_Hyphen)
+		else MATCH_TOKEN('*', t_Star)
+		else MATCH_TOKEN('^', t_Caret)
+		else MATCH_TOKEN('.', t_Dot)
+		else MATCH_TOKEN('|', t_Or)
 		else {
-		t.push_back(make_unique<t_char>(c));
+		t.push_back(make_unique<t_Char>(c));
 		}
 
 #undef MATCH_TOKEN(s,t)
@@ -135,17 +169,96 @@ int main(int argc, char ** argv)
 		cerr << "File cannot be open" << endl;
 		return 2;
 	}
-	auto t = tokenize(in);
-	//for (auto&i : t) cout << typeid(*i).name() << endl;
-	auto p = parse_program(t);
-	Scope s;
-	p->run(s);
+	toklist tokenList = tokenize(argv[0]);
 
-
-
-
-
+	auto AST = parse_Regex(tokenList);
 
 
 	return 0;
+}
+
+
+/*Regex bude muj interface
+v nem budu mit funkci, ktera zapocitava pocet schod
+*/
+class Regex {
+public:
+	virtual size_t match_part(const string& str, size_t begin, size_t max_len) = 0;
+	list<unique_ptr<Regex>> l;
+};
+
+
+class OrRegex : public Regex
+{
+public:
+	list<unique_ptr<Regex>> l;
+};
+class SeqRegex : public Regex
+{
+public:
+	list<unique_ptr<Regex>> l;
+private:
+	string regex;
+};
+class StarRegex : public Regex
+{
+public:
+	list<unique_ptr<Regex>> l;
+private:
+	string regex;
+};
+class SimpleRegex : public Regex
+{
+public:
+	list<unique_ptr<Regex>> l;
+private:
+	string regex;
+};
+class StarRegex : public Regex
+{
+public:
+	list<unique_ptr<Regex>> l;
+private:
+	string regex;
+};
+class InBrackets {
+public:
+private:
+	string token;
+};
+class BracketsItem {
+public:
+private:
+	string token;
+};
+
+
+
+Regex parse_Regex(toklist &t) {
+	//Regex r;
+
+	//if (t.empty) { return nullptr; }
+	toklist regex;
+	for (auto &i : t )
+	{
+		if (i.get()->get_var_name != "t_Or") {
+			
+		}
+		else {
+			regex.push_back(i);
+		}
+	}
+
+}
+unique_ptr<Regex> parse_OrRegex(toklist &t) {
+
+}
+unique_ptr<Regex> parse_SeqRegex(toklist &t) {
+
+}
+unique_ptr<Regex> parse_StarRegex(toklist &t) {
+
+}
+unique_ptr<Regex> parse_SimpleRegex(toklist &t) {
+
 }

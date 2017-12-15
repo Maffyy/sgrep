@@ -113,6 +113,9 @@
   <ItemGroup>
     <ClCompile Include="sgrep.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Regexlib.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
