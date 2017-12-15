@@ -15,7 +15,7 @@ using namespace std;
 	Trida, ktera rozezna o jaky token se jedna
 	pouzivam u vsech funkci atribut virtual
 */
-class token
+class token : public Regex
 {
 public:
 
@@ -82,26 +82,20 @@ make_token(Or);
 make_token(Char);
 
 
-/*
-	vytvari token t_char ze znakù
 
-		Mozna jeste zrusim.
-			-> protože jsem prave vytvoril token pro Char a z "politickych" duvodu to bude 
-			   lepsi
-*/
-class t_Char : public token 
+class t_Char 
 {
 public:
-	t_Char(char name) : name(name) {}
+	t_Char(string name) : name(name) {}
 
 	bool is_char() {
 		return true;
 	}
-	char get_char_name() {
+	string get_char_name() {
 		return name;
 	}
 private:
-	char name;
+	string name;
 };
 
 /*
@@ -156,7 +150,7 @@ toklist tokenize(string regexp)
 
 int main(int argc, char ** argv) 
 {
-	
+	toklist tokenList = tokenize(argv[0]);
 	string filename;
 	if (argc == 2)
 		filename = argv[1];
@@ -169,111 +163,225 @@ int main(int argc, char ** argv)
 		cerr << "File cannot be open" << endl;
 		return 2;
 	}
-	toklist tokenList = tokenize(argv[0]);
-
-	auto AST = parse_Regex(tokenList);
-
-
 	return 0;
 }
 
-
-/*Regex bude muj interface
-v nem budu mit funkci, ktera zapocitava pocet schod
-*/
-using regexList = list<unique_ptr<Regex>>;
-class Regex {
+class Regex : public token
+{
+	string str;
 public:
+	virtual size_t match_part(const string& str, size_t begin, size_t max_len) { }
 
-	virtual size_t match_part(const string& str, size_t begin, size_t max_len) = 0;
-
-	Regex(regexList l) : l(l) {}
-
-	regexList getRegexList() {
-		return l;
+	virtual bool is_OrRegex() {
+		return false;
 	}
-	void setRegexList(regexList regex) {
-		l = regex;
+	virtual bool is_SeqRegex() {
+		return false;
 	}
-	void pushToRegexList(Regex& r) {
-		l.push_back(make_unique<r>());
+	virtual bool is_StarRegex() {
+		return false;
 	}
-
-
-private:
-	regexList l;
+	virtual bool is_SimpleRegex() {
+		return false;
+	}
+	virtual bool is_InBrackets() {
+		return false;
+	}
+	virtual bool is_BracketsItem() {
+		return false;
+	}
+	/*virtual toklist getTokens() {
+		throw - 1;
+	}*/
+	virtual string getString() {
+		return str;
+	}
 };
-
 
 class OrRegex : public Regex
 {
+	unique_ptr<SeqRegex> seq;
+	unique_ptr<OrRegex> or;
 public:
-	list<unique_ptr<Regex>> l;
+	OrRegex(unique_ptr<SeqRegex> &&seq) : seq(move(seq)) {};
+	OrRegex(unique_ptr<SeqRegex> &&seq, unique_ptr<OrRegex> &&or) : seq(move(seq)), or(move(or)) {};
+
+	bool is_OrRegex() {
+		return true;
+	}
 };
-class SeqRegex : public Regex
-{
+class SeqRegex : public Regex {
+	unique_ptr<Regex> star, seq;
 public:
-	list<unique_ptr<Regex>> l;
-private:
-	string regex;
+	SeqRegex(unique_ptr<Regex> &&star) : star(move(star)) {};
+	SeqRegex(unique_ptr<Regex> &&star, unique_ptr<Regex> seq) : star(move(star)), seq(move(seq)) {};
+
+
+	bool is_SeqRegex() {
+		return true;
+	}
 };
-class StarRegex : public Regex
-{
+class StarRegex : public Regex {
+	unique_ptr<Regex> simple, star;
+	string str;
 public:
-	list<unique_ptr<Regex>> l;
-private:
-	string regex;
+	StarRegex(unique_ptr<Regex> &&simple) : simple(move(simple)) {};
+	StarRegex(unique_ptr<Regex> &&simple, unique_ptr<Regex> &&star) : simple(move(simple)), star(move(star)) {};
+
+	bool is_StarRegex() {
+		return true;
+	}
 };
-class SimpleRegex : public Regex
-{
+
+
+class SimpleRegex : public Regex {
+	unique_ptr<Regex> r;
+	unique_ptr<token> t1;
+	unique_ptr<token> t2;
+	unique_ptr<token> t3;
+	unique_ptr<token> t4;
 public:
-	list<unique_ptr<Regex>> l;
-private:
-	string regex;
+	/*
+	first constructor can represent two rules:
+		ParenOpen Regex ParenClose
+		BracketOpen InBrackets BracketClose
+			-> InBrackets is defined as a regex
+				-> maybe I will change the definition
+	*/
+	SimpleRegex(unique_ptr<token> &&t1, unique_ptr<Regex> &&r, unique_ptr<token> &&t2) : t1(move(t1)), r(move(r)), t2(move(t2)) {};
+	SimpleRegex(unique_ptr<token> &&t1, unique_ptr<token> &&t2, unique_ptr<Regex> &&r, unique_ptr<token> &&t3) : t1(move(t1)), t2(move(t2)), r(move(r)), t3(move(t3)) {};
+	SimpleRegex(unique_ptr<token> &&t1) : t1(move(t1)) {};
+	/*last constructor represents Dot or Char */
+
+	bool is_SimpleRegex() {
+		return true;
+	}
 };
-class StarRegex : public Regex
-{
+class InBrackets : Regex {
+	unique_ptr<Regex> brItem, inBr;
 public:
-	list<unique_ptr<Regex>> l;
-private:
-	string regex;
+	InBrackets(unique_ptr<Regex> &&brItem) : brItem(move(brItem)) {};
+	InBrackets(unique_ptr<Regex> &&brItem, unique_ptr<Regex> &&inBr) : brItem(move(brItem)), inBr(move(inBr)) {};
+
+	bool is_InBrackets() {
+		return true;
+	}
 };
-class InBrackets {
-public:
-private:
-	string token;
-};
-class BracketsItem {
-public:
-private:
-	string token;
+class BracketsItem : Regex {
+	unique_ptr<token> t,t2,t3;
+public: 
+	BracketsItem(unique_ptr<token> t) : t(move(t)) {};
+	BracketsItem(unique_ptr<token> t, unique_ptr<token> t2, unique_ptr<token> t3) : t(move(t)), t2(move(t2)), t3(move(t3)) {};
+
+	bool is_BracketsItem() {
+		return true;
+	}
 };
 
 
 
-Regex& parse_Regex(toklist &t) {
-	Regex& r();
-	toklist regex;
-	for (auto &i : t )
-	{
-		if (i.get()->get_var_name != "t_Or") {
-			
+
+
+
+/*regular expression parser*/
+unique_ptr<Regex> parse_Regex(toklist& t) {
+	return parse_OrRegex(t);
+}
+unique_ptr<Regex> parse_OrRegex(toklist& t) {
+	unique_ptr<Regex> seq = parse_SeqRegex(t);
+	if (!t.empty() && t.front()->is_or()) {
+		t.pop_front();
+		return make_unique<OrRegex>(move(seq), parse_OrRegex(t));
+	}
+	else {
+		return seq;
+	}
+}
+unique_ptr<Regex> parse_SeqRegex(toklist& t) {
+	unique_ptr<Regex> star = parse_StarRegex(t);
+	if (!t.empty() && t.front()->is_SeqRegex) {
+		return make_unique<SeqRegex>(move(star), parse_SeqRegex(t));
+	}
+	else {
+		return star;
+	}
+}
+unique_ptr<Regex> parse_StarRegex(toklist& t) {
+	unique_ptr<Regex> simple = parse_SimpleRegex(t);
+	if (!t.empty() && t.front()->is_star) {
+		t.pop_front();
+		return make_unique<StarRegex>(move(simple), parse_StarRegex(t));
+	}
+	else {
+		return simple;
+	}
+}
+unique_ptr<Regex> parse_SimpleRegex(toklist& t) {
+	
+	if (!t.empty() && t.front()->is_parenOpen) {
+		t.pop_front();
+		unique_ptr<Regex> reg = parse_Regex(t);
+		if (!t.empty() && t.front()->is_parenClose) {
+			return make_unique<SimpleRegex>(reg);
 		}
 		else {
-			regex.push_back(i);
+			/*spatne uzavorkovani*/
 		}
+	}
+	else if (!t.empty() && t.front()->is_bracketOpen) {
+		t.pop_front();
+		unique_ptr<Regex> br = parse_InBrackets(t);
+
+		if (!t.empty() && t.front()->is_bracketClose) {
+			return make_unique<SimpleRegex>(br);
+		}
+		else {
+			/* spatne uzavorkovani */
+		}
+	}
+	else if (!t.empty() && t.front()->is_dot) {
+		t.pop_front();
+		t_Dot d;
+		return make_unique<SimpleRegex>(d);
+	}
+	else if (!t.empty() && t.front()->is_char) {
+		t_Char c(t.pop_front);
+		return make_unique<SimpleRegex>(c);
+	}
+}
+
+/* Bracket parser */
+unique_ptr<Regex> parse_InBrackets(toklist& t) {
+
+	if (!t.empty() && t.front()->is_BracketsItem) {
+
 	}
 
 }
-unique_ptr<Regex> parse_OrRegex(toklist &t) {
+unique_ptr<Regex> parse_BracketsItem(toklist& t) {
 
 }
-unique_ptr<Regex> parse_SeqRegex(toklist &t) {
 
-}
-unique_ptr<Regex> parse_StarRegex(toklist &t) {
 
-}
-unique_ptr<Regex> parse_SimpleRegex(toklist &t) {
 
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
