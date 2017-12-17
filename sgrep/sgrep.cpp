@@ -44,6 +44,9 @@ public:
 	virtual bool is_or() {
 		return false;
 	}
+	virtual char get_char() {
+		throw - 1;
+	}
 	virtual string get_var_name() {
 		throw - 1;
 	}
@@ -71,7 +74,7 @@ public:
 	bool is_char() {
 		return true;
 	}
-	char get_char_name() {
+	char get_char() {
 		return name;
 	}
 private:
@@ -105,90 +108,168 @@ toklist tokenize(string regexp)
 }
 
 
-using regexlist = list<unique_ptr<Regex>>;
-
 class Regex  {
 	size_t num;
 public:
 	virtual size_t match_part(const string& str, size_t begin, size_t max_len) = 0;
 };
-
-class OrRegex : public Regex {
-
-};
-class StarRegex : public Regex {
-
-};
-class SimpleRegex : public Regex {
-
-};
-class InBrackets : public Regex {
-
-};
-class BracketsItem : public Regex {
-
-};
 /*
-char a star budou obsahovat tokeny
+Mam dva konstruktory
+jeden prijima jenom 
+
 */
-
-
-class Char : public Regex { 
-	string t;
+class OrRegex : public Regex {
+	unique_ptr<Regex> seq;
+	unique_ptr<Regex> or ;
 public:
-	Char(string t) : t(t) {};
-	
-	size_t match_part(const string& str, size_t begin, size_t max_len) {
-		if (t[0] == '.') {		// tecka matchuje cokoliv
-			return 1;
-		}
-		else if (t[0] != '[') {			
-			if (t[0] == str[begin]) {
-				return 1;
-			}
-			else {		
-				return 0;
-			}
-		}
-		else {							// pokud je prvni znak zavorka, musim vybirat znak  z mnoziny
-			if (t[1] == '^') {
+	OrRegex(unique_ptr<Regex> &&seq, unique_ptr<Regex> && or ) : seq(move(seq)), or (move(or )) {};
 
-			}
-			else {
-				for (size_t i = 1; i < t.length - 2; i++)
-				{
-					if (token[i+1] == '-') {
+	size_t match_part(const string& str, size_t begin, size_t max_len) {
+		size_t left = seq->match_part(str, begin, max_len);
+		size_t right = or->match_part(str, begin, max_len);
+		if (left > right) { return left; }
+		else { return right; }
+	}
+};
+class SeqRegex : public Regex {
+	unique_ptr<Regex> star, seq;
+public:
+	SeqRegex(unique_ptr<Regex> &&star, unique_ptr<Regex> seq) : star(move(star)), seq(move(seq)) {};
+
+	size_t match_part(const string& str, size_t begin, size_t max_len) {
+		return seq->match_part(str, begin, max_len) + star->match_part(str, begin, max_len);
+	}
+};
+
+class StarRegex : public Regex {
+	unique_ptr<Regex> simple, star;
+public:
+	StarRegex(unique_ptr<Regex> &&simple) : simple(move(simple)) {};
+	StarRegex(unique_ptr<Regex> &&simple, unique_ptr<Regex> &&star) : simple(move(simple)), star(move(star)) {};
+
+	size_t match_part(const string& str, size_t begin, size_t max_len) {
+		return simple->match_part(str, begin, max_len) + star->match_part(str, begin, max_len);
+	}
+};
+
+
+
+
+class Star : public Regex {
+	toklist t;
+	unique_ptr<Regex> r;
+public:
+	Star(toklist t) : t(t) {};
+	Star(unique_ptr<Regex> &&r) : r(move(r)) {};
+
+	size_t match_part(const string& str, size_t begin, size_t max_len) {
+		
+	}
+};
+
+
+class Char : public Regex {
+	toklist t;
+public:
+	Char(toklist t) : t(t) {};
+	size_t match_part(const string& str, size_t begin, size_t max_len) {
+	/*	bool caret = false;
+		if (!t.empty) {
+			if (t.front()->is_bracketOpen && t.back()->is_bracketClose) {
+				t.pop_front();
+				t.pop_back();
+				if (t.front()->is_caret) {
+					t.pop_front();
+					caret = true;
+				}
+				char c;
+				while (!t.empty()) {
+					if (t.front()->is_char()) {
+						c = t.front()->get_char();
+						t.pop_front();
+						if (!caret && c == str[begin] ) {
+							return 1;
+						}
+						if (caret && c != str[begin]) {
+							return 1;
+						}
+
+						if (!t.empty() && t.front()->is_hyphen()) {
+							t.pop_front();
+							char c2 = t.front()->get_char();
+							
+							if (int(str[begin]) > int(c) && int(str[begin]) <= int(c2) && !caret) {
+								return 1;
+							}
+						}
+						
+					}
+					if (t.front()->is_char()) {
 
 					}
 				}
 			}
-		}
-
-	}
-};
-class BracketsItem {
-public:
-
-};
-
-class Star : public Regex {
-string token;
-public: 
-	Star(string token) : token(token) {};
-	
-	size_t match_part(const string& str, size_t begin, size_t max_len) {
-		size_t matched = 0;
-		for (size_t i = begin; i < max_len; i+=token.length)
-		{
-			/*vždycky se posunu o delku tokenu a kouknu se jestli dana cast je rovna*/
-			if (token == str.substr(begin, token.length)) {
-				matched += token.length;
+			if (t.front()->is_dot()) {
+				t.pop_front();
 			}
+			if (t.front()->is_char()) {
+				t.pop_front();
+			}
+		
 		}
-		return matched;
+	*/
 	}
 };
 
+
+
+/*regular expression parser */
+unique_ptr<Regex> parse_Regex(toklist& t) {
+	return parse_OrRegex(t);
+}
+unique_ptr<Regex> parse_OrRegex(toklist& t) {
+	unique_ptr<Regex> seq = parse_SeqRegex(t);
+	if (!t.empty() && t.front()->is_or()) {
+		t.pop_front();
+		return make_unique<OrRegex>(move(seq), parse_OrRegex(t));
+	}
+	else {
+		return seq;
+	}
+}
+unique_ptr<Regex> parse_SeqRegex(toklist& t) {
+	unique_ptr<Regex> star = parse_StarRegex(t);
+	if (!t.empty()) {
+		return make_unique<SeqRegex>(move(star), parse_SeqRegex(t));
+	}
+	else {
+		return star;
+	}
+}
+unique_ptr<Regex> parse_StarRegex(toklist& t) {
+	unique_ptr<Regex> simple = parse_SimpleRegex(t);
+	if (!t.empty() && t.front()->is_star()) {
+		return make_unique<StarRegex>(move(simple), parse_StarRegex(t));
+	}
+	else {
+		return simple;
+	}
+}
+
+unique_ptr<Regex> parse_SimpleRegex(toklist& t) {
+	
+	if ((!t.empty) && (t.front()->is_char() || (t.front()->is_bracketOpen()))) {
+		return make_unique<Char>(t);
+	}
+	if (!t.empty && t.front()->is_parenOpen()) {
+		t.pop_front();
+		auto regex = parse_Regex(t);
+		if (!t.empty() && t.front()->is_parenClose()) {
+			t.pop_front();
+			return regex;
+		}
+	}
+}
 
 
 
