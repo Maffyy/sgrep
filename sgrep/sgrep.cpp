@@ -86,7 +86,7 @@ toklist tokenize(const string& regexp)
 	toklist t;
 	bool backslash = false;
 	for (char c : regexp) {
-		cout << c << endl;
+		//cout << c << endl;
 
 		// TO-DO: Osetrit, pokud bude backslash na konci.
 		if (c == '\\') {
@@ -109,7 +109,7 @@ toklist tokenize(const string& regexp)
 		else {
 		t.push_back(make_unique<t_Char>(c));
 		}
-		if (c != '\\') { backslash == false; }
+		if (c != '\\') { backslash = false; }
 #undef MATCH_TOKEN
 
 	}
@@ -152,8 +152,22 @@ public:
 
 	size_t match_part(const string& str, size_t begin, size_t max_len) {
 		size_t matched = 0;
-		matched = star->match_part(str, begin, max_len);
-		return matched + seq->match_part(str, begin+matched, max_len);
+		size_t m = 0;
+		/* jak se posouvat v seqregexu */
+
+		for (size_t i = begin; i < begin + max_len; i += m)
+		{
+			m = star->match_part(str, i, max_len);
+			//cout << m << endl;
+			if (m == 0) { i++;  }
+			matched += m;
+		}
+
+		//matched = star->match_part(str, begin, max_len);
+		//cout << "true" << endl;
+		size_t matched2 = seq->match_part(str, begin + matched, max_len);
+	//	if (matched2 == 0) { return 0; }
+		return matched + matched2;
 	}
 };
 
@@ -166,10 +180,11 @@ public:
 	size_t match_part(const string& str, size_t begin, size_t max_len) {
 		size_t matched = 0;
 		size_t m =0;
-		for (size_t i = begin; i < begin+max_len-1; i+=m)
+		for (size_t i = begin; i < begin+max_len; i+=m)
 		{
 			m = star->match_part(str, i, max_len);
-			if (m == 0) { break; }
+			//cout << m << endl;
+			if (m == 0) { matched = 0; break; }
 			matched += m;
 		}
 		return matched;
@@ -196,63 +211,15 @@ public:
 	Char(set<char>&& t, bool caret = false) : t(move(t)), caret(caret) {};
 
 	size_t match_part(const string& str, size_t begin, size_t max_len) {
-		if (t.count(str[begin] && max_len) && !caret) {
+		if (t.count(str[begin]) && !caret) {
+		//	cout << "true" << endl;
 			return 1;
 		}
-		else if (!t.count(str[begin] && max_len) && caret) {
+		else if (!t.count(str[begin]) && caret) {
 			return 0;
 		}
-		else return npos;
-
-
+		else return 0;
 	}
-#if 0
-	// TO-DO: 
-	size_t match_part(const string& str, size_t begin, size_t max_len) {
-		
-		if (!t.empty() && t.front()->is_Dot()) {
-			return 1;
-		}
-		// TO-DO: is it better to write it as a one condition or two??
-		if (!t.empty() && t.front()->is_Char()) {
-			if (t.front()->get_char() == str[begin]) { return 1; }
-		}
-
-		// TO-DO: match bracketsItem
-		if (!t.empty() && t.front()->is_BracketOpen()) {
-			t.pop_front();
-			if (!t.empty() && t.front()->is_Caret()) { 
-				caret = true;
-				t.pop_front();
-			}
-			while (!t.empty() && !t.front()->is_BracketClose())
-			{
-				
-				if (!caret && t.front()->is_Char() && t.front()->get_char() == str[begin]) { return 1; }
-				if (caret && t.front()->is_Char() && t.front()->get_char() != str[begin]) { return 1;}
-
-				char c = t.front()->get_char();
-				t.pop_front();
-
-				if (!t.empty() && t.front()->is_Hyphen()) {
-					t.pop_front();
-					char c2;
-					if (!t.empty() && t.front()->is_Char()) {
-						c2 = t.front()->get_char();
-						t.pop_front();
-					}
-					if (!caret && (str[begin] > c && str[begin] <= c2)) {
-						return 1;
-					}
-					if (caret && (str[begin] <= c && str[begin] > c2)) {
-						return 1;
-					}
-				}
-			}
-		}
-		return 0;
-	}
-#endif
 };
 
 
@@ -280,10 +247,14 @@ unique_ptr<Regex> parse_SimpleRegex(toklist& t) {
 		bool caret = false;
 		while (!t.front()->is_BracketClose()) {
 			if (t.front()->is_Caret()) { caret = true; }
-			if (t.front()->is_Char()) { c = t.front()->get_char(); }
+			if (t.front()->is_Char()) { 
+				c = t.front()->get_char();
+				s.insert(c);
+//				cout << "true" << endl;
+			}
 			if (t.front()->is_Hyphen()) {
 				t.pop_front();
-				if (!t.empty && t.front()->is_Char() && c != 0) {
+				if (!t.empty() && t.front()->is_Char() && c != 0) {
 					int i = (int)c + 1;
 					while (i != (int)t.front()->get_char()) {
 						s.insert(i);
@@ -291,6 +262,7 @@ unique_ptr<Regex> parse_SimpleRegex(toklist& t) {
 					}
 				}
 				else {
+					//cout << "true" << endl;
 					throw - 1;
 				}
 			}
@@ -298,10 +270,13 @@ unique_ptr<Regex> parse_SimpleRegex(toklist& t) {
 		}
 		if (!t.empty() && t.front()->is_BracketClose()) { t.pop_front(); }
 		else {
+		//	cout << "true" << endl;
 			throw - 3;
 		}
 		if (caret) { return make_unique<Char>(move(s), true); }
-		else { return make_unique<Char>(move(s)); }
+		else {
+			//cout << "true" << endl;
+			return make_unique<Char>(move(s)); }
 	}
 	// TO-DO: You have to find a way, how to make ParenRegex item.
 	if (!t.empty() && t.front()->is_ParenOpen()) {
@@ -340,7 +315,6 @@ unique_ptr<Regex> parse_SeqRegex(toklist& t) {
 	}
 }
 
-
 unique_ptr<Regex> parse_OrRegex(toklist& t) {
 	unique_ptr<Regex> seq = parse_SeqRegex(t);
 	if (!t.empty() && t.front()->is_Or()) {
@@ -360,20 +334,14 @@ unique_ptr<Regex> parse_Regex(toklist& t) {
 
 int main(int argc, char ** argv) {
 
-	toklist t = tokenize("a*a");
-	cout << argv[1] << endl;
-	//try
-	//{
-		auto regex = parse_Regex(t);
-	//}
-	//catch (...)
-	//{
-	//int x =	5;
-
-	//}
+	toklist t = tokenize("c");
 	
+	int x = 5;
 
-	//cout << regex.get()->match_part("ahoj", 0, 4) << endl;
+	auto regex = parse_Regex(t);
+
+	cout << regex.get()->match_part("bca", 0, 3) << endl;
+	for(;;){}
 	return 0;
 }
 
