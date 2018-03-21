@@ -5,6 +5,7 @@
 #include <set>
 #include <fstream>
 
+
 using namespace std;
 
 /* Token Interface */
@@ -183,12 +184,16 @@ public:
             size_t matchedParen2 = seq->match_part(str, begin+matched, max_len);
             return matchedParen2;
         }
+	/*	if (begin + matched > str.length()-1) {
+			return matched;
+		}*/
         size_t matched2 = seq->match_part(str, begin + matched, max_len);
         if (matched2 == npos) {
             return npos;
         }
         return matched + matched2;
     }
+
 };
 
 class StarRegex : public Regex {
@@ -256,6 +261,7 @@ public:
         else return npos;
     }
 };
+
 unique_ptr<Regex> parse_Regex(toklist& t);
 unique_ptr<Regex> parse_SimpleRegex(toklist& t)
 {
@@ -372,6 +378,7 @@ unique_ptr<Regex> parse_Regex(toklist& t)
 {
     return parse_OrRegex(t);
 }
+
 void processFile(toklist& t, ifstream& in)
 {
     auto regex = parse_Regex(t);
@@ -413,8 +420,10 @@ int main(int argc, char ** argv)
 		processFile(t, in);
 	}
 	else if (argc == 2) {
-		toklist t = tokenize(argv[1]);
+		toklist t = tokenize(".*a");
+		_CrtDumpMemoryLeaks();
 		processInput(t);
+		_CrtDumpMemoryLeaks();
 	}
 	else {
 		cout << "Wrong parameters" << endl;
