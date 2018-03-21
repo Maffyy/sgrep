@@ -318,7 +318,7 @@ unique_ptr<Regex> parse_SimpleRegex(toklist& t)
             throw "BracketClose Missing";
         }
         if (caret) {
-            return make_unique<Char>(move(s), true);
+            return make_unique<Char>(move(s), true);//ewfw
         }
         else {
             return make_unique<Char>(move(s));
